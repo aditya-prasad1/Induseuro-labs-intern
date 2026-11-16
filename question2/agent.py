@@ -1,133 +1,169 @@
 from __future__ import annotations
 
 import json
-import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Sequence
 
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from question1.retriever import ArticleRetriever, ScoredArticle, build_query
+from question2.rules import Action, RuleResult, resolve_order
 from shared.billing import CostSession
-from shared.kb import expanded_help_center_blob, title_index
 from shared.llm import ChatMessage, LlmClient
 from shared.tools import format_thread, get_order, get_ticket
 
-from question1.agent import parse_resolution
+
+ALLOWED_ACTIONS = tuple(action.value for action in Action)
 
 
-@dataclass
-class TicketResolution:
-    action: str
+class TicketOutput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    action: Action
     kb_article: str
+    evidence: list[str] = Field(default_factory=list)
+    customer_reply: str
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+
+
+class TicketOutputError(ValueError):
+    """Raised when the compose node does not return a valid ticket output."""
+
+
+@dataclass(frozen=True)
+class AuditResult:
+    action: Action
+    kb_article: str
+    evidence: list[str]
+    customer_reply: str
+    confidence: float
+    audited_at: datetime
+
+
+SYSTEM_PROMPT = """You are ShopAssist, a Tier-1 customer support copilot.
+Triage the ticket using the order snapshot and retrieved help-center articles.
+Choose exactly one action from ALLOWED_ACTIONS: {allowed_actions}.
+Cite one retrieved article slug in kb_article, or "none" if no article applies.
+List the order or ticket facts supporting the decision in evidence. Draft a
+concise customer_reply and return confidence from 0 to 1.
+Return only JSON with: action, kb_article, evidence, customer_reply, confidence."""
+
+
+def parse_resolution(text: str) -> TicketOutput:
+    try:
+        return TicketOutput.model_validate_json(text)
+    except (ValidationError, ValueError, TypeError) as exc:
+        raise TicketOutputError(f"Invalid ticket output: {exc}") from exc
+
+
+def audit(
+    res: RuleResult,
+    order: dict,
+    retrieved_slugs: Sequence[str],
+    parsed: TicketOutput,
+    now: datetime | None = None,
+) -> AuditResult:
+    """Apply citation, confidence, and article policy checks to a draft."""
+    expected = resolve_order(order)
+    retrieved = set(retrieved_slugs)
+    action = parsed.action
+    article = parsed.kb_article
+    evidence = list(parsed.evidence)
+
+    if action.value not in ALLOWED_ACTIONS:
+        raise ValueError(f"Unsupported action: {action}")
+
+    if article != "none" and article not in retrieved:
+        action = Action.ESCALATE_TIER2
+        article = "none"
+        evidence.append("The cited article was not retrieved.")
+
+    if action != Action.ESCALATE_TIER2 and article == "none":
+        action = Action.ESCALATE_TIER2
+        evidence.append("A non-escalation action requires an article citation.")
+
+    if parsed.confidence < 0.5:
+        action = Action.ESCALATE_TIER2
+        evidence.append("Confidence below 0.5 requires Tier 2 escalation.")
+
+    if action == Action.ESCALATE_TIER2 and article == "none":
+        for candidate in (expected.kb_article, res.kb_article):
+            if candidate in retrieved:
+                article = candidate
+                break
+
+    return AuditResult(
+        action=action,
+        kb_article=article,
+        evidence=evidence,
+        customer_reply=parsed.customer_reply,
+        confidence=parsed.confidence,
+        audited_at=now or datetime.now(timezone.utc),
+    )
 
 
 class SupportPipeline:
-    """Same product as Question 1 — triage, retrieve, compose, audit."""
+    """Retriever → compose → deterministic audit support pipeline."""
+
+    _retriever: ArticleRetriever | None = None
 
     def __init__(self, session: CostSession | None = None):
         self.session = session or CostSession()
         self.llm = LlmClient(self.session)
-        self.help_center = expanded_help_center_blob()
+        if SupportPipeline._retriever is None:
+            SupportPipeline._retriever = ArticleRetriever()
+        self.retriever = SupportPipeline._retriever
 
-    def handle_ticket(self, ticket_id: str) -> TicketResolution:
-        ticket = get_ticket(ticket_id)
-        order = get_order(ticket["order_id"])
-        thread = format_thread(ticket)
-        snapshot = json.dumps(order, indent=2)
-
-        triage = self._triage(ticket_id, thread, snapshot)
-        retrieved = self._retrieve(triage, snapshot)
-        draft = self._compose(ticket_id, thread, snapshot, triage, retrieved)
-        final = self._audit(ticket_id, thread, snapshot, triage, retrieved, draft)
-        parsed = parse_resolution(final)
-        return TicketResolution(parsed.action, parsed.kb_article)
-
-    def _triage(self, ticket_id: str, thread: str, snapshot: str) -> str:
-        messages = [
-            ChatMessage(
-                "system",
-                "\n".join(
-                    [
-                        f"trace-{uuid.uuid4()}",
-                        "Triage node: restate the ticket step by step and list candidate kb articles.",
-                        f"ARTICLE TITLES:\n{title_index(500)}",
-                        self.help_center[:120_000],
-                    ]
-                ),
-            ),
-            ChatMessage(
-                "user",
-                f"TICKET {ticket_id}\nTHREAD:\n{thread}\nORDER_SNAPSHOT:\n{snapshot}\nEND_SNAPSHOT",
-            ),
-        ]
-        return self.llm.chat("triage", messages)
-
-    def _retrieve(self, triage: str, snapshot: str) -> str:
-        messages = [
-            ChatMessage(
-                "system",
-                "Retrieve node: print full text of the eight most relevant help articles.",
-            ),
-            ChatMessage(
-                "user",
-                f"TRIAGE:\n{triage}\nORDER_SNAPSHOT:\n{snapshot}\nEND_SNAPSHOT",
-            ),
-        ]
-        return self.llm.chat("retrieve", messages)
+    def _retrieve(self, ticket: dict, order: dict) -> list[ScoredArticle]:
+        customer_text = " ".join(
+            message["text"]
+            for message in ticket["messages"]
+            if message["from"] == "customer"
+        )
+        return self.retriever.search(build_query(customer_text, order), top_k=2)
 
     def _compose(
         self,
         ticket_id: str,
         thread: str,
         snapshot: str,
-        triage: str,
-        retrieved: str,
+        retrieved: Sequence[ScoredArticle],
     ) -> str:
+        articles = "\n\n".join(
+            f"--- {article.slug} ---\n{article.body}" for article in retrieved
+        )
         messages = [
             ChatMessage(
                 "system",
-                "Compose node: full reasoning, then JSON with action, kb_article, customer_reply.",
+                SYSTEM_PROMPT.format(allowed_actions=", ".join(ALLOWED_ACTIONS)),
             ),
             ChatMessage(
                 "user",
                 "\n\n".join(
                     [
-                        f"TICKET {ticket_id}",
+                        f"TICKET_ID: {ticket_id}",
                         f"THREAD:\n{thread}",
                         f"ORDER_SNAPSHOT:\n{snapshot}\nEND_SNAPSHOT",
-                        f"TRIAGE:\n{triage}",
-                        f"ARTICLES:\n{retrieved}",
-                        f"TRIAGE AGAIN:\n{triage}",
+                        f"RETRIEVED_ARTICLES:\n{articles}",
                     ]
                 ),
             ),
         ]
         return self.llm.chat("compose", messages)
 
-    def _audit(
-        self,
-        ticket_id: str,
-        thread: str,
-        snapshot: str,
-        triage: str,
-        retrieved: str,
-        draft: str,
-    ) -> str:
-        messages = [
-            ChatMessage(
-                "system",
-                "Audit node: double-check policy, restate ticket, rewrite JSON output.",
-            ),
-            ChatMessage(
-                "user",
-                "\n\n".join(
-                    [
-                        self.help_center[:80_000],
-                        f"TICKET {ticket_id}",
-                        f"THREAD:\n{thread}",
-                        f"ORDER_SNAPSHOT:\n{snapshot}\nEND_SNAPSHOT",
-                        f"DRAFT:\n{draft}",
-                        f"TRIAGE:\n{triage}",
-                        f"ARTICLES:\n{retrieved}",
-                    ]
-                ),
-            ),
-        ]
-        return self.llm.chat("audit", messages)
+    def handle_ticket(self, ticket_id: str) -> AuditResult:
+        ticket = get_ticket(ticket_id)
+        order = get_order(ticket["order_id"])
+        thread = format_thread(ticket)
+        snapshot = json.dumps(order, indent=2)
+        retrieved = self._retrieve(ticket, order)
+        draft = self._compose(ticket_id, thread, snapshot, retrieved)
+        parsed = parse_resolution(draft)
+        return audit(
+            resolve_order(order),
+            order,
+            [article.slug for article in retrieved],
+            parsed,
+            datetime.now(timezone.utc),
+        )
