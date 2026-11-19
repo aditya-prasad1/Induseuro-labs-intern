@@ -4406,6 +4406,21 @@ globalThis["mermaid"] = globalThis.__esbuild_esm_mermaid_nm["mermaid"].default;
       
 <h1 id="shopassist-design">ShopAssist Design </h1>
 <h2 id="1-question-1">1. Question 1 </h2>
+<h3 id="architecture-based-changes">Architecture-Based Changes </h3>
+<ol>
+<li><span style="color:red">LLM based KB article selection</span> →<br>
+<span style="color:green">Local hybrid retriever using BM25 (lexical) and embeddings (semantic) search with reciprocal rank fusion (RRF)</span></li>
+<li><span style="color:red">Full article blobs</span> →<br>
+<span style="color:green">Relevant articles</span></li>
+</ol>
+<h3 id="prompt-engineering">Prompt Engineering </h3>
+<ol start="3">
+<li><span style="color:red">4 redundant few-shot examples</span> →<br>
+<span style="color:green">2 concise examples</span></li>
+<li><span style="color:red">Verbose reasoning</span> →<br>
+<span style="color:green">Only the required JSON</span></li>
+<li><span style="color:green">Run ID removed from the prompt</span></li>
+</ol>
 <h3 id="design">Design </h3>
 <p>Question1 uses local hybrid retrieval followed by one focused LLM call.</p>
 <div class="mermaid">flowchart TD
@@ -4479,6 +4494,36 @@ globalThis["mermaid"] = globalThis.__esbuild_esm_mermaid_nm["mermaid"].default;
 </tbody>
 </table>
 <h2 id="2-question-2">2. Question 2 </h2>
+<h3 id="architecture-based-changes-1">Architecture-Based Changes </h3>
+<ol>
+<li>
+<p><span style="color:red">Multi-node pipeline with multiple LLM calls</span> →<br>
+<span style="color:green">Triage/Retriever (local) → Compose (LLM) → Audit<br>
+(local)</span></p>
+</li>
+<li>
+<p><span style="color:red">4 LLM Calls</span> →<br>
+<span style="color:green">1 LLM Call</span></p>
+</li>
+<li>
+<p><span style="color:red">LLM-based KB article selection</span> →<br>
+<span style="color:green">Local hybrid retriever using BM25 (lexical) and<br>
+embeddings (semantic) search with reciprocal rank fusion (RRF)</span></p>
+</li>
+<li>
+<p><span style="color:red">LLM-based audit</span> →<br>
+<span style="color:green">Deterministic boundary rules from the KB articles</span></p>
+</li>
+</ol>
+<h3 id="prompt-engineering-1">Prompt Engineering </h3>
+<ol start="3">
+<li><span style="color:red">4 redundant few shot examples</span> →<br>
+<span style="color:green">2 concise examples</span></li>
+<li><span style="color:red">Verbose reasoning</span> →<br>
+<span style="color:green">Only the required JSON</span></li>
+<li><span style="color:green">Run ID removed from the prompt</span></li>
+<li><span style="color:green"> Second triage call removed </span></li>
+</ol>
 <h3 id="overall-design">Overall design </h3>
 <p>Question2 keeps the pipeline stages explicit:</p>
 <div class="mermaid">flowchart TD
