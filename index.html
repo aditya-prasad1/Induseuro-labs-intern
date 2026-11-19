@@ -4457,7 +4457,7 @@ globalThis["mermaid"] = globalThis.__esbuild_esm_mermaid_nm["mermaid"].default;
     class B,E search
     class F fusion
     class A output
-</div><p>Implementation: <a href="question1/retriever.py">question1/retriever.py</a></p>
+</div><p>Implementation: <a href="https://github.com/aditya-prasad1/Induseuro-labs-intern/blob/main/question1/agent.py">question1/agent.py</a></p>
 <h3 id="per-ticket-points">Per-ticket points </h3>
 <table>
 <thead>
@@ -4545,22 +4545,6 @@ embeddings (semantic) search with reciprocal rank fusion (RRF)</span></p>
     class A audit
     class K audit
     class F output
-</div><h3 id="retriever-1">Retriever </h3>
-<div class="mermaid">flowchart TD
-    Q[Ticket query] --&gt; B[BM25]
-    Q --&gt; E[Embeddings]
-    B --&gt; F[Rank fusion]
-    E --&gt; F
-    F --&gt; A[Top KB articles]
-
-    classDef input fill:#dbeafe,stroke:#2563eb,color:#111827
-    classDef search fill:#dcfce7,stroke:#16a34a,color:#111827
-    classDef fusion fill:#fef3c7,stroke:#d97706,color:#111827
-    classDef output fill:#fce7f3,stroke:#db2777,color:#111827
-    class Q input
-    class B,E search
-    class F fusion
-    class A output
 </div><h3 id="deterministic-audit">Deterministic audit </h3>
 <div class="mermaid">flowchart TD
     J[Typed model output] --&gt; D[Deterministic policy validator]
@@ -4577,7 +4561,8 @@ embeddings (semantic) search with reciprocal rank fusion (RRF)</span></p>
     class D,V,C check
     class X escalation
     class F output
-</div><p>Rules are defined from the KB articles in<br>
+</div><p>Implementation: <a href="https://github.com/aditya-prasad1/Induseuro-labs-intern/blob/main/question2/agent.py">question2/agent.py</a>.<br>
+Rules are defined from the KB articles in<br>
 <a href="question2/rules.py">question2/rules.py</a>.</p>
 <h3 id="per-ticket-points-1">Per-ticket points </h3>
 <table>
