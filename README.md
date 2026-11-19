@@ -2,8 +2,8 @@
 
 ## Submission
 
-- Design document: `[Add design document link]`
-- Video explanation: `[Add video explanation link]`
+- Design document: [View design document](https://aditya-induseuro-intern-assignment-flax.vercel.app/)
+- Video explanation: [Watch video explanation](https://drive.google.com/file/d/1C-8fuTCL-NvxC7PxZgxIinKeEkMqjDKX/view?usp=sharing)
 
 ## Solution:
 
@@ -95,7 +95,7 @@ Implementation: [question1/agent.py](https://github.com/aditya-prasad1/Induseuro
 <span style="color:green">Local hybrid retriever using BM25 (lexical) and
 embeddings (semantic) search with reciprocal rank fusion (RRF)</span>
 
-4. <span style="color:red">LLM-based audit</span> →
+4. <span style="color:red">Deterministic audit</span> →
 <span style="color:green">Deterministic boundary rules from the KB articles</span>
 
 ### Prompt Engineering
