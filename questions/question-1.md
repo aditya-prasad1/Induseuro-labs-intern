@@ -2,7 +2,7 @@
 
 **Product:** ShopAssist resolves Tier-1 tickets without a human when possible.
 
-**Starting point:** [question1/agent.py](../question1/agent.py) — class `SupportCopilot`.
+**Starting point:** [question1/agent.py](https://github.com/aditya-prasad1/Induseuro-labs-intern/blob/main/question1/agent.py) — class `SupportCopilot`.
 
 The baseline is already correct on the tickets checked by `pytest` (including `T-1091`). Reduce **points per ticket** using the billing rules in the repository README without changing graded fields.
 

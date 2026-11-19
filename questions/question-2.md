@@ -1,6 +1,6 @@
 # Question 2 — Four-node production pipeline
 
-**Product:** ShopAssist — same routing as Question 1, implemented as **triage → retrieve → compose → audit** in [question2/agent.py](../question2/agent.py).
+**Product:** ShopAssist — same routing as Question 1, implemented as **triage → retrieve → compose → audit** in [question2/agent.py](https://github.com/aditya-prasad1/Induseuro-labs-intern/blob/main/question2/agent.py).
 
 The help center in this track is much larger than in Question 1 (`shared/kb.py`). The baseline pipeline is correct on the public tickets in `pytest`.
 

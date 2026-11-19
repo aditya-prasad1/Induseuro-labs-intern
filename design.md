@@ -61,7 +61,7 @@ flowchart TD
     class A output
 ```
 
-Implementation: [question1/retriever.py](question1/retriever.py)
+Implementation: [question1/agent.py](https://github.com/aditya-prasad1/Induseuro-labs-intern/blob/main/question1/agent.py)
 
 ### Per-ticket points
 
@@ -167,6 +167,7 @@ flowchart TD
     class F output
 ```
 
+Implementation: [question2/agent.py](https://github.com/aditya-prasad1/Induseuro-labs-intern/blob/main/question2/agent.py).
 Rules are defined from the KB articles in
 [question2/rules.py](question2/rules.py).
 
