@@ -2,15 +2,21 @@
 
 ## Changes to `agent.py`
 
-- Replaced LLM-based article selection with a local hybrid retriever that combines
-  BM25 (lexical) and embeddings (semantic) search using reciprocal rank fusion
-  (RRF).
-- Removed the run ID from the prompt.
-- Reduced the few-shot prompt to two concise examples.
-- Requested only the resolution JSON instead of verbose reasoning.
+
+### Architecture-Based Changes
+1. <span style="color:red">LLM based KB article selection</span> →
+<span style="color:green">Local hybrid retriever using BM25 (lexical) and embeddings (semantic) search with reciprocal rank fusion (RRF)</span>
+2. <span style="color:red">Full article blobs</span> →
+<span style="color:green">Relevant articles</span>
+
+### Prompt Engineering
+3. <span style="color:red">4 redundant few-shot examples</span> →
+<span style="color:green">2 concise examples</span>
+4. <span style="color:red">Verbose reasoning</span> →
+<span style="color:green">Only the required JSON</span>
+5. <span style="color:green">Run ID removed from the prompt</span>
 
 ## Design
-
 Question 1 uses local hybrid retrieval followed by one focused LLM call.
 
 ```mermaid
