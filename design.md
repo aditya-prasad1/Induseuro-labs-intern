@@ -127,26 +127,6 @@ flowchart TD
     class F output
 ```
 
-### Retriever
-
-```mermaid
-flowchart TD
-    Q[Ticket query] --> B[BM25]
-    Q --> E[Embeddings]
-    B --> F[Rank fusion]
-    E --> F
-    F --> A[Top KB articles]
-
-    classDef input fill:#dbeafe,stroke:#2563eb,color:#111827
-    classDef search fill:#dcfce7,stroke:#16a34a,color:#111827
-    classDef fusion fill:#fef3c7,stroke:#d97706,color:#111827
-    classDef output fill:#fce7f3,stroke:#db2777,color:#111827
-    class Q input
-    class B,E search
-    class F fusion
-    class A output
-```
-
 ### Deterministic audit
 
 ```mermaid
